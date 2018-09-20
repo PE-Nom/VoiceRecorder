@@ -6,11 +6,13 @@ Vue.use(Vuex)
 const store = new Vuex.Store({
   state: {
     transcript: '',
-    listening: false
+    listening: false,
+    wssendCount: 0
   },
   getters: {
     transcript (state) { return state.transcript },
-    listening (state) { return state.listening }
+    listening (state) { return state.listening },
+    wssendcount (state) { return state.wssendCount }
   },
   mutations: {
     setTranscript (state, payload) {
@@ -20,6 +22,9 @@ const store = new Vuex.Store({
     setListening (state, payload) {
       state.listening = payload.listening
       console.log(state.listening)
+    },
+    setWsSendCount (state, payload) {
+      state.wssendCount = payload.sendcnt
     }
   }
 })

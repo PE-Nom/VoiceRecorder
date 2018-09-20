@@ -8,6 +8,8 @@
     <div>
       <p><audio id="audio" ref="audio" controls></audio></p>
       <p> listenig : {{listening}} </p>
+      <p> WsSendCount : {{wssendcnt}} </p>
+      <p> AudioProcessVnt : {{audioprocesscnt}} </p>
       <p>{{transcript}}</p>
     </div>
   </div>
@@ -37,7 +39,8 @@ export default {
       audioContext: null,
       audioInput: null,
       audioAnalyser: null,
-      audioRecorder: null
+      audioRecorder: null,
+      audioprocesscnt: 0
     }
   },
   computed: {
@@ -46,6 +49,9 @@ export default {
     },
     listening () {
       return this.$store.getters.listening
+    },
+    wssendcnt () {
+      return this.$store.getters.wssendcount
     }
   },
   methods: {
@@ -61,6 +67,7 @@ export default {
     },
     async start () {
       console.log('##### start')
+      alert('start')
       sp.resetProcessor()
       this.createRecorder()
       await stt.wsopen()
@@ -70,12 +77,16 @@ export default {
     async stop () {
       console.log('##### stop')
       await stt.wsclose()
-      this.audioInput.disconnect()
-      this.audioRecorder.disconnect()
       this.isRecording = false
+      alert('audioRecorder try to disconnect')
+      this.audioRecorder.disconnect()
+      alert('audioRecorder disconnected')
+      this.audioInput.disconnect()
+      alert('audioInput disconnected')
     },
     audioprocess (e) {
       // console.log('##### audioprocess')
+      this.audioprocesscnt++
       let source = e.inputBuffer.getChannelData(0)
       let buffer = sp.downSample(source, this.audioContext.sampleRate)
       let data = sp.floatTo16BitPCM(buffer)
@@ -84,6 +95,7 @@ export default {
     },
     createRecorder () {
       console.log('##### createRecorder')
+      alert('createRecorder')
       navigator.mediaDevices.getUserMedia({ audio: true, video: false })
         .then(stream => {
           let canvas = this.$refs.canvas
@@ -92,7 +104,8 @@ export default {
           let drawContext = canvas.getContext('2d')
           this.mediaStream = stream
 
-          this.audioContext = new AudioContext()
+          // this.audioContext = new AudioContext()
+          this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
           this.audioInput = this.audioContext.createMediaStreamSource(stream)
           this.audioRecorder = this.audioContext.createScriptProcessor(bufferSize, 1, 1)
           this.audioRecorder.onaudioprocess = this.audioprocess
@@ -125,6 +138,7 @@ export default {
         })
         .catch(error => {
           console.log(error)
+          alert(error)
         })
     }
   },

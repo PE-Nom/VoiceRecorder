@@ -7,6 +7,7 @@ export default {
     method: 'GET',
     // uri: 'https://192.168.10.6:8081/token'
     uri: 'https://192.168.1.4:8081/token'
+    // uri: 'https://pitsan.nomtech-pwa.com/token'
   },
   message: {
     'action': 'start',
@@ -16,6 +17,7 @@ export default {
   },
   ws: null,
   connected: false,
+  wssendcnt: 0,
   async wsopen () {
     let wsURI = null
     await axios.get(this.getTokenForm.uri)
@@ -67,6 +69,7 @@ export default {
         console.log(evt)
       }
     }
+    this.wssendcnt = 0
   },
   setTranscript (results) {
     console.log('setTranscript results.length : ' + results.length)
@@ -85,6 +88,12 @@ export default {
         // mask: false,
         mask: true
       })
+      this.wssendcnt++
+      console.log('wssendcnt : ' + this.wssendcnt)
+      if (this.wssendcnt % 20 === 0) {
+        console.log('store.commit')
+        store.commit('setWsSendCount', {sendcnt: this.wssendcnt})
+      }
     }
   },
   wsclose () {
