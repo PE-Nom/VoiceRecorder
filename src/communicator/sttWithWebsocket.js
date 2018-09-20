@@ -5,8 +5,8 @@ export default {
   wsURI: 'wss://stream.watsonplatform.net/speech-to-text/api/v1/recognize?watson-token=[TOKEN]&model=ja-JP_BroadbandModel&x-watson-learning-opt-out=1',
   getTokenForm: {
     method: 'GET',
-    // uri: 'https://192.168.10.6:8081/token'
-    uri: 'https://192.168.1.4:8081/token'
+    uri: 'https://192.168.10.6:8081/token'
+    // uri: 'https://192.168.1.4:8081/token'
     // uri: 'https://pitsan.nomtech-pwa.com/token'
   },
   message: {
@@ -18,19 +18,24 @@ export default {
   ws: null,
   connected: false,
   wssendcnt: 0,
+  TOKEN: null,
   async wsopen () {
     let wsURI = null
-    await axios.get(this.getTokenForm.uri)
-      .then((response, body) => {
-        console.log('token get')
-        console.log(response)
-        wsURI = this.wsURI.replace('[TOKEN]', response.data.token)
-      })
-      .catch(err => {
-        console.log('err @ wsopen')
-        console.log(err)
-      })
-    if (wsURI) {
+    if (!this.TOKEN) {
+      await axios.get(this.getTokenForm.uri)
+        .then((response, body) => {
+          console.log('token get')
+          console.log(response)
+          this.TOKEN = response.data.token
+          // wsURI = this.wsURI.replace('[TOKEN]', response.data.token)
+        })
+        .catch(err => {
+          console.log('err @ wsopen')
+          console.log(err)
+        })
+    }
+    if (this.TOKEN) {
+      wsURI = this.wsURI.replace('[TOKEN]', this.TOKEN)
       this.ws = new WebSocket(wsURI)
       this.ws.onmessage = function (evt) {
         console.log('onmessage event')

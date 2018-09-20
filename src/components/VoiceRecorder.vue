@@ -67,25 +67,26 @@ export default {
     },
     async start () {
       console.log('##### start')
-      alert('start')
       sp.resetProcessor()
       this.createRecorder()
       await stt.wsopen()
       this.isRecording = true
       this.chunks = []
+      this.$store.commit('setTranscript', {transcript: ''})
+      this.$store.commit('setWsSendCount', {sendcnt: 0})
+      this.audioprocesscnt = 0
     },
     async stop () {
       console.log('##### stop')
       await stt.wsclose()
       this.isRecording = false
-      alert('audioRecorder try to disconnect')
-      this.audioRecorder.disconnect()
-      alert('audioRecorder disconnected')
-      this.audioInput.disconnect()
-      alert('audioInput disconnected')
+      await this.audioRecorder.disconnect()
+      this.audioRecoder = null
+      await this.audioInput.disconnect()
+      this.audioInput = null
+      // await this.audioContext.close()
     },
     audioprocess (e) {
-      // console.log('##### audioprocess')
       this.audioprocesscnt++
       let source = e.inputBuffer.getChannelData(0)
       let buffer = sp.downSample(source, this.audioContext.sampleRate)
@@ -95,7 +96,8 @@ export default {
     },
     createRecorder () {
       console.log('##### createRecorder')
-      alert('createRecorder')
+      // stop で audioContext.close() する場合、start で再度 construct する必要がある。
+      // this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
       navigator.mediaDevices.getUserMedia({ audio: true, video: false })
         .then(stream => {
           let canvas = this.$refs.canvas
@@ -104,8 +106,6 @@ export default {
           let drawContext = canvas.getContext('2d')
           this.mediaStream = stream
 
-          // this.audioContext = new AudioContext()
-          this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
           this.audioInput = this.audioContext.createMediaStreamSource(stream)
           this.audioRecorder = this.audioContext.createScriptProcessor(bufferSize, 1, 1)
           this.audioRecorder.onaudioprocess = this.audioprocess
@@ -144,6 +144,8 @@ export default {
   },
   mounted () {
     this.audio = this.$refs.audio
+    // stop で audioContext.close() しなければ、mounted で construct しておけばよい。
+    this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
   }
 }
 </script>
