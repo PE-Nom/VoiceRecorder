@@ -66,7 +66,6 @@ export default {
       }
     },
     async start () {
-      console.log('##### start')
       sp.resetProcessor()
       this.createRecorder()
       await stt.wsopen()
@@ -77,7 +76,6 @@ export default {
       this.audioprocesscnt = 0
     },
     async stop () {
-      console.log('##### stop')
       await stt.wsclose()
       this.isRecording = false
       await this.audioRecorder.disconnect()
@@ -95,7 +93,6 @@ export default {
       stt.wssend(data)
     },
     createRecorder () {
-      console.log('##### createRecorder')
       // stop で audioContext.close() する場合、start で再度 construct する必要がある。
       // this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
       navigator.mediaDevices.getUserMedia({ audio: true, video: false })
