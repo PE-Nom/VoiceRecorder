@@ -1,18 +1,18 @@
 import axios from 'axios'
-// import WS from 'ws'
+import store from '../store.js'
 
 export default {
   wsURI: 'wss://stream.watsonplatform.net/speech-to-text/api/v1/recognize?watson-token=[TOKEN]&model=ja-JP_BroadbandModel&x-watson-learning-opt-out=1',
   getTokenForm: {
     method: 'GET',
-    uri: 'https://192.168.10.6:8081/token'
+    // uri: 'https://192.168.10.6:8081/token'
+    uri: 'https://192.168.1.4:8081/token'
   },
   message: {
     'action': 'start',
-    // 'content-type': 'audio/wav',
     'content-type': 'audio/l16;rate=16000',
-    'continuous': true,
-    'inactivity_timeout': -1
+    'interim_results': true,
+    'word_alternatives_threshold': 0.01
   },
   ws: null,
   connected: false,
@@ -34,9 +34,16 @@ export default {
         console.log('onmessage event')
         console.log(evt.data)
         let data = JSON.parse(evt.data)
-        if (data.state === 'listening') {
-          console.log('listening')
-          this.connected = true
+        if (data.state) {
+          console.log(data.state)
+          if (data.state === 'listening') {
+            console.log('listening')
+            this.setListening(true)
+            this.connected = true
+          }
+        }
+        if (data.results) {
+          this.setTranscript(data.results)
         }
       }.bind(this)
       this.ws.onerror = function (evt) {
@@ -50,6 +57,7 @@ export default {
       this.ws.onopen = function (evt) {
         console.log('onopen event')
         console.log(evt)
+        console.log(this.message)
         let msg = JSON.stringify(this.message)
         console.log(msg)
         this.ws.send(msg)
@@ -57,13 +65,21 @@ export default {
       this.ws.onclose = function (evt) {
         console.log('onclose event')
         console.log(evt)
-        this.connected = false
-      }.bind(this)
+      }
     }
+  },
+  setTranscript (results) {
+    console.log('setTranscript results.length : ' + results.length)
+    console.log(results)
+    let length = results[0].alternatives.length
+    let transcript = results[0].alternatives[length - 1].transcript
+    store.commit('setTranscript', {transcript: transcript})
+  },
+  setListening (mode) {
+    store.commit('setListening', {listening: mode})
   },
   wssend (chunk) {
     if (this.connected) {
-      console.log('wssend')
       this.ws.send(chunk, {
         binary: true,
         // mask: false,
@@ -72,6 +88,12 @@ export default {
     }
   },
   wsclose () {
-    this.ws.close()
+    if (this.connected) {
+      let closingMessage = { action: 'stop' }
+      this.wssend(JSON.stringify(closingMessage))
+      this.setListening(false)
+      this.connected = false
+      this.ws.close()
+    }
   }
 }
