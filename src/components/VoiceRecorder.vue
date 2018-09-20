@@ -88,6 +88,7 @@ export default {
       await stt.wsclose()
       this.audioInput.disconnect()
       this.isRecording = false
+      this.stream.stop()
       // this.mediaRecoder.stop()
       // this.mediaRecoder = null
     },
@@ -184,8 +185,10 @@ export default {
       return outputBuffer
     },
     audioprocess (e) {
-      // console.log('### audioprocess ###')
-      let buffer = this.downSample(e.inputBuffer)
+      console.log('### audioprocess ###')
+      console.log(e.inputBuffer)
+      let source = e.inputBuffer.getChannelData(0)
+      let buffer = this.downSample(source)
       let data = this.floatTo16BitPCM(buffer)
       this.chunks.push(data)
       stt.wssend(data)

@@ -9,7 +9,8 @@ export default {
   },
   message: {
     'action': 'start',
-    'content-type': 'audio/wav',
+    // 'content-type': 'audio/wav',
+    'content-type': 'audio/l16;rate=16000',
     'continuous': true,
     'inactivity_timeout': -1
   },
