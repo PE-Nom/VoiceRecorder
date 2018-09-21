@@ -5,15 +5,18 @@ export default {
   wsURI: 'wss://stream.watsonplatform.net/speech-to-text/api/v1/recognize?watson-token=[TOKEN]&model=ja-JP_BroadbandModel&x-watson-learning-opt-out=1',
   getTokenForm: {
     method: 'GET',
-    uri: 'https://192.168.10.6:8081/token'
-    // uri: 'https://192.168.1.4:8081/token'
+    // uri: 'https://192.168.10.6:8081/token'
+    uri: 'https://192.168.1.4:8081/token'
     // uri: 'https://pitsan.nomtech-pwa.com/token'
   },
   message: {
     'action': 'start',
     'content-type': 'audio/l16;rate=16000',
+    'word_confidence': true,
+    'timestamps': true,
     'interim_results': true,
-    'word_alternatives_threshold': 0.01
+    'word_alternatives_threshold': 0.01,
+    'inactivity_timeout': 2
   },
   ws: null,
   connected: false,
@@ -32,6 +35,7 @@ export default {
         .catch(err => {
           console.log('err @ wsopen')
           console.log(err)
+          alert(err)
         })
     }
     if (this.TOKEN) {
@@ -56,6 +60,7 @@ export default {
       this.ws.onerror = function (evt) {
         console.log('onerror event')
         console.log(evt)
+        alert(evt)
       }
       this.ws.onconnection = function (evt) {
         console.log('onconnection event')
@@ -72,7 +77,11 @@ export default {
       this.ws.onclose = function (evt) {
         console.log('onclose event')
         console.log(evt)
-      }
+        if (this.connected) {
+          this.setListening(false)
+          this.connected = false
+        }
+      }.bind(this)
     }
     this.wssendcnt = 0
   },
@@ -87,22 +96,21 @@ export default {
     store.commit('setListening', {listening: mode})
   },
   wssend (chunk) {
-    if (this.connected) {
+    if (this.connected && this.ws.readyState === 1) {
       this.ws.send(chunk, {
         binary: true,
         // mask: false,
         mask: true
       })
       this.wssendcnt++
-      console.log('wssendcnt : ' + this.wssendcnt)
       if (this.wssendcnt % 20 === 0) {
-        console.log('store.commit')
+        // console.log('store.commit')
         store.commit('setWsSendCount', {sendcnt: this.wssendcnt})
       }
     }
   },
   wsclose () {
-    if (this.connected) {
+    if (this.connected && this.ws.readyState === 1) {
       let closingMessage = { action: 'stop' }
       this.wssend(JSON.stringify(closingMessage))
       this.setListening(false)

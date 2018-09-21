@@ -54,6 +54,14 @@ export default {
       return this.$store.getters.wssendcount
     }
   },
+  watch: {
+    listening: function (newVal, oldVal) {
+      if (!newVal && oldVal && this.isRecording) {
+        console.log('listening() computed value is chaned')
+        this.stopRecorder()
+      }
+    }
+  },
   methods: {
     onAudioChanged (event) {
       console.log('onAudioChanged')
@@ -66,23 +74,37 @@ export default {
       }
     },
     async start () {
-      sp.resetProcessor()
-      this.createRecorder()
-      await stt.wsopen()
-      this.isRecording = true
-      this.chunks = []
-      this.$store.commit('setTranscript', {transcript: ''})
-      this.$store.commit('setWsSendCount', {sendcnt: 0})
-      this.audioprocesscnt = 0
+      if (!this.isRecording) {
+        await stt.wsopen()
+        await this.startRecorder()
+      }
+    },
+    async startRecorder () {
+      if (!this.isRecording) {
+        this.chunks = []
+        this.$store.commit('setTranscript', {transcript: ''})
+        this.$store.commit('setWsSendCount', {sendcnt: 0})
+        this.audioprocesscnt = 0
+        sp.resetProcessor()
+        this.createRecorder()
+        this.isRecording = true
+      }
     },
     async stop () {
-      await stt.wsclose()
-      this.isRecording = false
-      await this.audioRecorder.disconnect()
-      this.audioRecoder = null
-      await this.audioInput.disconnect()
-      this.audioInput = null
-      // await this.audioContext.close()
+      if (this.isRecording) {
+        await stt.wsclose()
+        await this.stopRecorder()
+      }
+    },
+    async stopRecorder () {
+      if (this.isRecording) {
+        await this.audioRecorder.disconnect()
+        await this.audioInput.disconnect()
+        this.audioRecoder = null
+        this.audioInput = null
+        // await this.audioContext.close()
+        this.isRecording = false
+      }
     },
     audioprocess (e) {
       this.audioprocesscnt++
