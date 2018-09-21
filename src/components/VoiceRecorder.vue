@@ -172,24 +172,21 @@ export default {
       // this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
       navigator.mediaDevices.getUserMedia({ audio: true, video: false })
         .then(stream => {
-          let canvas = this.$refs.canvas
-          let cw = canvas.width
-          let ch = canvas.height
-          let drawContext = canvas.getContext('2d')
           this.mediaStream = stream
-
           this.audioInput = this.audioContext.createMediaStreamSource(stream)
-          console.log('bufferSize : ' + bufferSize)
           this.audioRecorder = this.audioContext.createScriptProcessor(bufferSize, 1, 1)
           this.audioRecorder.onaudioprocess = this.audioprocess
           this.audioInput.connect(this.audioRecorder)
           this.audioRecorder.connect(this.audioContext.destination)
 
+          // --- Audio Visualize
           this.audioAnalyser = this.audioContext.createAnalyser()
           this.audioInput.connect(this.audioAnalyser)
-
+          let canvas = this.$refs.canvas
+          let cw = canvas.width
+          let ch = canvas.height
+          let drawContext = canvas.getContext('2d')
           let self = this
-          // --- Audio Visualize
           /*
           this.audioAnalyser.fftSize = 2048
           const array = new Uint8Array(self.audioAnalyser.fftSize)
