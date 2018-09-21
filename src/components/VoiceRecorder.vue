@@ -186,13 +186,16 @@ export default {
           this.audioRecorder.connect(this.audioContext.destination)
 
           this.audioAnalyser = this.audioContext.createAnalyser()
-          this.audioAnalyser.fftSize = 2048
           this.audioInput.connect(this.audioAnalyser)
+
           let self = this
+          // --- Audio Visualize
+          /*
+          this.audioAnalyser.fftSize = 2048
+          const array = new Uint8Array(self.audioAnalyser.fftSize)
+          const barWidth = cw / self.audioAnalyser.fftSize
           function draw () {
-            const array = new Uint8Array(self.audioAnalyser.fftSize)
             self.audioAnalyser.getByteTimeDomainData(array)
-            const barWidth = cw / self.audioAnalyser.fftSize
             drawContext.fillStyle = 'rgba(0, 0, 0, 1)'
             drawContext.fillRect(0, 0, cw, ch)
 
@@ -208,6 +211,32 @@ export default {
             requestAnimationFrame(draw)
           }
           draw()
+          */
+          // --
+          this.audioAnalyser.fftSize = 512
+          const bufferLength = this.audioAnalyser.frequencyBinCount
+          const array = new Uint8Array(bufferLength)
+          const barWidth = (cw / bufferLength) * 2.5
+
+          function renderFrame () {
+            self.audioAnalyser.getByteFrequencyData(array)
+            drawContext.fillStyle = 'rgba(0, 0, 0, 1)'
+            drawContext.fillRect(0, 0, cw, ch)
+            let x = 0
+
+            for (var i = 0; i < bufferLength; i++) {
+              let barHeight = array[i]
+              var r = barHeight + (25 * (i / bufferLength))
+              var g = 250 * (i / bufferLength)
+              var b = 50
+              drawContext.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')'
+              drawContext.fillRect(x, ch - barHeight, barWidth, barHeight)
+              x += barWidth + 1
+            }
+            requestAnimationFrame(renderFrame)
+          }
+          renderFrame()
+          // --
         })
         .catch(error => {
           console.log(error)
