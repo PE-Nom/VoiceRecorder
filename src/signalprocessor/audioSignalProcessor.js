@@ -38,11 +38,13 @@ export default {
   resetProcessor () {
     this.bufferUnusedSamples = []
   },
-  floatTo16BitPCM (input) {
-    let output = new DataView(new ArrayBuffer(input.length * 2)) // length is in bytes (8-bit), so *2 to get 16-bit length
+  floatTo16BitPCM (output, offset, input) {
+    if (!output) {
+      output = new DataView(new ArrayBuffer(input.length * 2)) // length is in bytes (8-bit), so *2 to get 16-bit length
+    }
     for (let i = 0; i < input.length; i++) {
       let multiplier = input[i] < 0 ? 0x8000 : 0x7fff // 16-bit signed range is -32768 to 32767
-      output.setInt16(i * 2, (input[i] * multiplier) | 0, true) // index, value ("| 0" = convert to 32-bit int, round towards 0), littleEndian.
+      output.setInt16(offset + i * 2, (input[i] * multiplier) | 0, true) // index, value ("| 0" = convert to 32-bit int, round towards 0), littleEndian.
     }
     return bufferFrom(output.buffer)
   },

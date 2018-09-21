@@ -40,7 +40,8 @@ export default {
       audioInput: null,
       audioAnalyser: null,
       audioRecorder: null,
-      audioprocesscnt: 0
+      audioprocesscnt: 0,
+      audioBlob: null
     }
   },
   computed: {
@@ -73,6 +74,7 @@ export default {
         console.log('no file selected')
       }
     },
+    // レコーディング開始制御
     async start () {
       if (!this.isRecording) {
         await stt.wsopen()
@@ -90,10 +92,12 @@ export default {
         this.isRecording = true
       }
     },
+    // レコーディング停止制御
     async stop () {
       if (this.isRecording) {
         await stt.wsclose()
         await this.stopRecorder()
+        // wav file 作成
       }
     },
     async stopRecorder () {
@@ -104,16 +108,65 @@ export default {
         this.audioInput = null
         // await this.audioContext.close()
         this.isRecording = false
+        this.createWavFile(this.concatChunks(), this.audioContext.sampleRate)
       }
     },
+    // 音声信号処理
     audioprocess (e) {
       this.audioprocesscnt++
       let source = e.inputBuffer.getChannelData(0)
       let buffer = sp.downSample(source, this.audioContext.sampleRate)
-      let data = sp.floatTo16BitPCM(buffer)
-      // this.chunks.push(data)
+      let data = sp.floatTo16BitPCM(null, 0, buffer)
       stt.wssend(data)
+      //  レコーディング
+      let chunk = source.slice()
+      this.chunks.push(chunk)
     },
+    // wav file 作成
+    concatChunks () {
+      console.log('concatChunks')
+      let sampleLength = 0
+      this.chunks.forEach(chunk => {
+        sampleLength += chunk.length
+      })
+      // ここから結合
+      let sampleCnt = 0
+      let samples = new Float32Array(sampleLength)
+      this.chunks.forEach(chunk => {
+        chunk.forEach(sample => {
+          samples[sampleCnt] = sample
+          sampleCnt++
+        })
+      })
+      return samples
+    },
+    writeString (view, offset, string) {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
+      }
+    },
+    createWavFile (samples, sampleRate) {
+      let buffer = new ArrayBuffer(44 + samples.length * 2)
+      let view = new DataView(buffer)
+      this.writeString(view, 0, 'RIFF') // RIFFヘッダ
+      view.setUint32(4, 32 + samples.length * 2, true) // これ以降のファイルサイズ
+      this.writeString(view, 8, 'WAVE') // WAVEヘッダ
+      this.writeString(view, 12, 'fmt ') // fmtチャンク
+      view.setUint32(16, 16, true) // fmtチャンクのバイト数
+      view.setUint16(20, 1, true) // フォーマットID
+      view.setUint16(22, 1, true) // チャンネル数
+      view.setUint32(24, sampleRate, true) // サンプリングレート
+      view.setUint32(28, sampleRate * 2, true) // データ速度
+      view.setUint16(32, 2, true) // ブロックサイズ
+      view.setUint16(34, 16, true) // サンプルあたりのビット数
+      this.writeString(view, 36, 'data') // dataチャンク
+      view.setUint32(40, samples.length * 2, true) // 波形データのバイト数
+      sp.floatTo16BitPCM(view, 44, samples) // 波形データ
+
+      this.audioBlob = new Blob([view], { type: 'audio/wav' })
+      this.audio.src = URL.createObjectURL(this.audioBlob)
+    },
+    // Web Audio API 生成
     createRecorder () {
       // stop で audioContext.close() する場合、start で再度 construct する必要がある。
       // this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
@@ -126,6 +179,7 @@ export default {
           this.mediaStream = stream
 
           this.audioInput = this.audioContext.createMediaStreamSource(stream)
+          console.log('bufferSize : ' + bufferSize)
           this.audioRecorder = this.audioContext.createScriptProcessor(bufferSize, 1, 1)
           this.audioRecorder.onaudioprocess = this.audioprocess
           this.audioInput.connect(this.audioRecorder)
