@@ -3,9 +3,9 @@
     <canvas id="canvas" ref="canvas"></canvas>
     <audio id="audio" ref="audio" controls></audio>
     <div>
-      <button id="start" v-if="!isRecording" v-on:click="start">録音開始</button>
-      <button id="stop" v-else v-on:click="stop">録音終了</button>
-      <button id="replay" v-if="audioBlob" v-on:click="convertBlob">変換</button>
+      <button id="start" v-if="!isRecording" v-bind:disabled="isConverting" v-on:click="start">録音開始</button>
+      <button id="stop" v-else v-bind:disabled="isConverting" v-on:click="stop">録音終了</button>
+      <button id="replay" v-bind:disabled="!audioBlob || isRecording" v-on:click="convertBlob">変換</button>
       <p> listenig : {{listening}} </p>
     </div>
     <div>
@@ -40,6 +40,7 @@ export default {
       audiosource: null,
       mediaStream: null,
       isRecording: false,
+      isConverting: false,
       chunks: [],
       audio: null,
       audioContext: null,
@@ -112,6 +113,7 @@ export default {
     },
     async startConvert () {
       console.log('startConvert')
+      this.isConverting = true
       // listening になったら (watch listening から呼び出す)
       // audioBlob から readStream で読み出して、stt.wssend する
       let stream = new ReadableBlobStream(this.audioBlob)
@@ -130,6 +132,7 @@ export default {
     },
     stopConvert () {
       stt.wsclose()
+      this.isConverting = false
       this.mode = MODE_REALTIME
     },
     // レコーディング開始制御
