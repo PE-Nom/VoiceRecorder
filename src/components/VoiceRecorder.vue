@@ -5,6 +5,7 @@
     <div>
       <button id="start" v-if="!isRecording" v-on:click="start">録音開始</button>
       <button id="stop" v-else v-on:click="stop">録音終了</button>
+      <button id="replay" v-if="audioBlob" v-on:click="convertBlob">変換</button>
       <p> listenig : {{listening}} </p>
     </div>
     <div>
@@ -18,6 +19,7 @@
 <script>
 import stt from '../communicator/sttWithWebsocket.js'
 import sp from '../signalprocessor/audioSignalProcessor.js'
+import ReadableBlobStream from 'readable-blob-stream'
 
 // "It is recommended for authors to not specify this buffer size and allow the implementation to pick a good
 // buffer size to balance between latency and audio quality."
@@ -31,6 +33,7 @@ export default {
   name: 'VoiceRecorder',
   data () {
     return {
+      mode: 'realtime',
       msg: 'ボイスレコーダ',
       audiosource: null,
       mediaStream: null,
@@ -62,9 +65,12 @@ export default {
       if (!newVal && oldVal && this.isRecording) {
         console.log('listening() computed value is changed true -> false')
         this.stopRecorder()
-      } else if (newVal && !oldVal && !this.isRecording) {
-        console.log('listening() computed value is changed false -> true')
+      } else if (newVal && !oldVal && !this.isRecording && this.mode === 'realtime') {
+        console.log('listening() computed value is changed false -> true in RealTime')
         this.startRecorder()
+      } else if (newVal && !oldVal && !this.isRecording && this.mode !== 'realtime') {
+        console.log('listening() computed value is changed false -> true in Batch')
+        this.startConvert()
       }
     },
     recordlimit: function (newVal, oldVal) {
@@ -84,11 +90,52 @@ export default {
         console.log('no file selected')
       }
     },
+    // 再変換開始制御
+    async convertBlob () {
+      console.log('convertBlob')
+      if (!this.isRecording) {
+        this.mode = 'batch'
+        let openingMsg = {
+          'action': 'start',
+          'content-type': 'audio/wav',
+          'interim_results': true,
+          'continuous': true,
+          'inactivity_timeout': -1
+        }
+        await stt.wsopen(openingMsg)
+      }
+      // stt.wsopen をかける
+    },
+    async startConvert () {
+      console.log('startConvert')
+      // listening になったら (watch listening から呼び出す)
+      // audioBlob から readStream で読み出して、stt.wssend する
+      let stream = new ReadableBlobStream(this.audioBlob)
+      stream.on('error', error => {
+        console.log('error with reading audioBlob')
+        console.log(error)
+      })
+      stream.on('data', data => {
+        console.log('read data from audioBlob ')
+        stt.wssend(data)
+      })
+      stream.on('end', () => {
+        stt.wssend(Buffer.alloc(0), {binary: true, mask: true})
+      })
+    },
     // レコーディング開始制御
     async start () {
       if (!this.isRecording) {
-        await stt.wsopen()
-        // await this.startRecorder()
+        let openingMsg = {
+          'action': 'start',
+          'content-type': 'audio/l16;rate=16000',
+          'word_confidence': false,
+          'timestamps': true,
+          'interim_results': true,
+          'word_alternatives_threshold': 0.01,
+          'inactivity_timeout': 2
+        }
+        await stt.wsopen(openingMsg)
       }
     },
     async startRecorder () {

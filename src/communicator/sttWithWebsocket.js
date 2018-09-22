@@ -12,7 +12,7 @@ export default {
   message: {
     'action': 'start',
     'content-type': 'audio/l16;rate=16000',
-    'word_confidence': true,
+    'word_confidence': false,
     'timestamps': true,
     'interim_results': true,
     'word_alternatives_threshold': 0.01,
@@ -22,7 +22,7 @@ export default {
   connected: false,
   wssendcnt: 0,
   TOKEN: null,
-  async wsopen () {
+  async wsopen (openingMsg) {
     let wsURI = null
     if (!this.TOKEN) {
       await axios.get(this.getTokenForm.uri)
@@ -69,8 +69,10 @@ export default {
       this.ws.onopen = function (evt) {
         console.log('onopen event')
         console.log(evt)
-        console.log(this.message)
-        let msg = JSON.stringify(this.message)
+        // console.log(this.message)
+        // let msg = JSON.stringify(this.message)
+        console.log(openingMsg)
+        let msg = JSON.stringify(openingMsg)
         console.log(msg)
         this.ws.send(msg)
       }.bind(this)
