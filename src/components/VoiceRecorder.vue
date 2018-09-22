@@ -1,13 +1,13 @@
 <template>
   <div class="VoiceRecoder">
     <canvas id="canvas" ref="canvas"></canvas>
+    <audio id="audio" ref="audio" controls></audio>
     <div>
       <button id="start" v-if="!isRecording" v-on:click="start">録音開始</button>
       <button id="stop" v-else v-on:click="stop">録音終了</button>
+      <p> listenig : {{listening}} </p>
     </div>
     <div>
-      <p><audio id="audio" ref="audio" controls></audio></p>
-      <p> listenig : {{listening}} </p>
       <p> WsSendCount : {{wssendcnt}} </p>
       <p> AudioProcessVnt : {{audioprocesscnt}} </p>
       <p>{{transcript}}</p>
@@ -25,6 +25,7 @@ import sp from '../signalprocessor/audioSignalProcessor.js'
 // however, webkitAudioContext (safari) requires it to be set'
 // Possible values: null, 256, 512, 1024, 2048, 4096, 8192, 16384
 const bufferSize = (typeof window.AudioContext === 'undefined' ? 4096 : null)
+const TIME_OUT_VAL = 720 // value of audioprocesscnt for recordinglimit 30sec
 
 export default {
   name: 'VoiceRecorder',
@@ -41,7 +42,8 @@ export default {
       audioAnalyser: null,
       audioRecorder: null,
       audioprocesscnt: 0,
-      audioBlob: null
+      audioBlob: null,
+      recordlimit: false
     }
   },
   computed: {
@@ -58,8 +60,16 @@ export default {
   watch: {
     listening: function (newVal, oldVal) {
       if (!newVal && oldVal && this.isRecording) {
-        console.log('listening() computed value is chaned')
+        console.log('listening() computed value is changed true -> false')
         this.stopRecorder()
+      } else if (newVal && !oldVal && !this.isRecording) {
+        console.log('listening() computed value is changed false -> true')
+        this.startRecorder()
+      }
+    },
+    recordlimit: function (newVal, oldVal) {
+      if (newVal && !oldVal) { // false -> true
+        this.stop()
       }
     }
   },
@@ -78,17 +88,19 @@ export default {
     async start () {
       if (!this.isRecording) {
         await stt.wsopen()
-        await this.startRecorder()
+        // await this.startRecorder()
       }
     },
     async startRecorder () {
       if (!this.isRecording) {
         this.chunks = []
+        this.recordlimit = false
         this.$store.commit('setTranscript', {transcript: ''})
         this.$store.commit('setWsSendCount', {sendcnt: 0})
         this.audioprocesscnt = 0
         sp.resetProcessor()
         this.createRecorder()
+        console.log('isRecording set true')
         this.isRecording = true
       }
     },
@@ -97,7 +109,6 @@ export default {
       if (this.isRecording) {
         await stt.wsclose()
         await this.stopRecorder()
-        // wav file 作成
       }
     },
     async stopRecorder () {
@@ -108,6 +119,7 @@ export default {
         this.audioInput = null
         // await this.audioContext.close()
         this.isRecording = false
+        // wav file 作成
         this.createWavFile(this.concatChunks(), this.audioContext.sampleRate)
       }
     },
@@ -121,6 +133,9 @@ export default {
       //  レコーディング
       let chunk = source.slice()
       this.chunks.push(chunk)
+      if (this.audioprocesscnt > TIME_OUT_VAL) {
+        this.recordlimit = true
+      }
     },
     // wav file 作成
     concatChunks () {
@@ -129,6 +144,7 @@ export default {
       this.chunks.forEach(chunk => {
         sampleLength += chunk.length
       })
+      console.log('sampleLength : ' + sampleLength)
       // ここから結合
       let sampleCnt = 0
       let samples = new Float32Array(sampleLength)

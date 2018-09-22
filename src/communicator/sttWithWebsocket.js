@@ -5,8 +5,8 @@ export default {
   wsURI: 'wss://stream.watsonplatform.net/speech-to-text/api/v1/recognize?watson-token=[TOKEN]&model=ja-JP_BroadbandModel&x-watson-learning-opt-out=1',
   getTokenForm: {
     method: 'GET',
-    // uri: 'https://192.168.10.6:8081/token'
-    uri: 'https://192.168.1.4:8081/token'
+    uri: 'https://192.168.10.6:8081/token'
+    // uri: 'https://192.168.1.4:8081/token'
     // uri: 'https://pitsan.nomtech-pwa.com/token'
   },
   message: {
