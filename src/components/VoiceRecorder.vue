@@ -28,6 +28,8 @@ import ReadableBlobStream from 'readable-blob-stream'
 // Possible values: null, 256, 512, 1024, 2048, 4096, 8192, 16384
 const bufferSize = (typeof window.AudioContext === 'undefined' ? 4096 : null)
 const TIME_OUT_VAL = 720 // value of audioprocesscnt for recordinglimit 30sec
+const MODE_REALTIME = 'realtime'
+const MODE_BATCH = 'batch'
 
 export default {
   name: 'VoiceRecorder',
@@ -56,6 +58,9 @@ export default {
     listening () {
       return this.$store.getters.listening
     },
+    listeningCount () {
+      return this.$store.getters.listeningCount
+    },
     wssendcnt () {
       return this.$store.getters.wssendcount
     }
@@ -65,12 +70,22 @@ export default {
       if (!newVal && oldVal && this.isRecording) {
         console.log('listening() computed value is changed true -> false')
         this.stopRecorder()
-      } else if (newVal && !oldVal && !this.isRecording && this.mode === 'realtime') {
-        console.log('listening() computed value is changed false -> true in RealTime')
-        this.startRecorder()
-      } else if (newVal && !oldVal && !this.isRecording && this.mode !== 'realtime') {
-        console.log('listening() computed value is changed false -> true in Batch')
-        this.startConvert()
+      } else if (newVal && !oldVal && !this.isRecording) {
+        if (this.mode === MODE_REALTIME) {
+          console.log('listening() computed value is changed false -> true in RealTime')
+          this.startRecorder()
+        } else if (this.mode === MODE_BATCH) {
+          console.log('listening() computed value is changed false -> true in Batch')
+          this.startConvert()
+        }
+      } else {
+        console.log('watch listening')
+      }
+    },
+    listeningCount: function (newVal, oldVal) {
+      console.log(newVal)
+      if (this.mode === MODE_BATCH && newVal === 2) {
+        this.stopConvert()
       }
     },
     recordlimit: function (newVal, oldVal) {
@@ -80,21 +95,11 @@ export default {
     }
   },
   methods: {
-    onAudioChanged (event) {
-      console.log('onAudioChanged')
-      if (event.target.files.length) {
-        // 選択されたファイル情報を取得
-        this.audiosource = event.target.files[0]
-        console.log(this.audiosource)
-      } else {
-        console.log('no file selected')
-      }
-    },
     // 再変換開始制御
     async convertBlob () {
       console.log('convertBlob')
       if (!this.isRecording) {
-        this.mode = 'batch'
+        this.mode = MODE_BATCH
         let openingMsg = {
           'action': 'start',
           'content-type': 'audio/wav',
@@ -104,7 +109,6 @@ export default {
         }
         await stt.wsopen(openingMsg)
       }
-      // stt.wsopen をかける
     },
     async startConvert () {
       console.log('startConvert')
@@ -120,8 +124,13 @@ export default {
         stt.wssend(data)
       })
       stream.on('end', () => {
+        console.log('read end from audioBlob')
         stt.wssend(Buffer.alloc(0), {binary: true, mask: true})
       })
+    },
+    stopConvert () {
+      stt.wsclose()
+      this.mode = MODE_REALTIME
     },
     // レコーディング開始制御
     async start () {

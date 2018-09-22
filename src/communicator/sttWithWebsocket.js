@@ -22,6 +22,7 @@ export default {
   connected: false,
   wssendcnt: 0,
   TOKEN: null,
+  listeningCount: 0,
   async wsopen (openingMsg) {
     let wsURI = null
     if (!this.TOKEN) {
@@ -41,15 +42,15 @@ export default {
     if (this.TOKEN) {
       wsURI = this.wsURI.replace('[TOKEN]', this.TOKEN)
       this.ws = new WebSocket(wsURI)
+      this.resetListeningCount()
       this.ws.onmessage = function (evt) {
         console.log('onmessage event')
         console.log(evt.data)
         let data = JSON.parse(evt.data)
         if (data.state) {
-          console.log(data.state)
           if (data.state === 'listening') {
-            console.log('listening')
             this.setListening(true)
+            this.incrementListeningCount()
             this.connected = true
           }
         }
@@ -96,6 +97,19 @@ export default {
   },
   setListening (mode) {
     store.commit('setListening', {listening: mode})
+  },
+  resetListeningCount () {
+    console.log('resetListeningCount')
+    this.listeningCount = 0
+    this.setListeningCount()
+  },
+  incrementListeningCount () {
+    console.log('incrementListeningCount')
+    this.listeningCount++
+    this.setListeningCount()
+  },
+  setListeningCount () {
+    store.commit('setListeningCount', {listeningCount: this.listeningCount})
   },
   wssend (chunk) {
     if (this.connected && this.ws.readyState === 1) {
