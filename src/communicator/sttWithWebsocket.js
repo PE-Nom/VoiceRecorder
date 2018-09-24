@@ -94,6 +94,10 @@ export default {
     let length = results[0].alternatives.length
     let transcript = results[0].alternatives[length - 1].transcript
     store.commit('setTranscript', {transcript: transcript})
+    console.log('results[0].final : ' + results[0].final)
+    if (results[0].final) {
+      store.commit('setTranscribed', {transcribed: transcript})
+    }
   },
   setListening (mode) {
     store.commit('setListening', {listening: mode})

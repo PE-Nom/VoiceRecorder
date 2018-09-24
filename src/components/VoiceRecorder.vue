@@ -3,15 +3,16 @@
     <canvas id="canvas" ref="canvas"></canvas>
     <audio id="audio" ref="audio" controls></audio>
     <div>
-      <button id="start" v-if="!isRecording" v-bind:disabled="isConverting" v-on:click="start">録音開始</button>
-      <button id="stop" v-else v-bind:disabled="isConverting" v-on:click="stop">録音終了</button>
-      <button id="replay" v-bind:disabled="!audioBlob || isRecording" v-on:click="convertBlob">変換</button>
+      <button id="start" v-if="!isRecording" v-bind:disabled="isConverting || isWaitListening" v-on:click="start">録音開始</button>
+      <button id="stop" v-else v-on:click="stop">録音終了</button>
+      <button id="replay" v-bind:disabled="!audioBlob || isWaitListening || isRecording || isConverting" v-on:click="convertBlob">変換</button>
       <p> listenig : {{listening}} </p>
     </div>
     <div>
       <p> WsSendCount : {{wssendcnt}} </p>
-      <p> AudioProcessVnt : {{audioprocesscnt}} </p>
+      <p> AudioProcessCnt : {{audioprocesscnt}} </p>
       <p>{{transcript}}</p>
+      <p>{{result}}</p>
     </div>
   </div>
 </template>
@@ -41,6 +42,7 @@ export default {
       mediaStream: null,
       isRecording: false,
       isConverting: false,
+      isWaitListening: false,
       chunks: [],
       audio: null,
       audioContext: null,
@@ -49,12 +51,16 @@ export default {
       audioRecorder: null,
       audioprocesscnt: 0,
       audioBlob: null,
-      recordlimit: false
+      recordlimit: false,
+      result: ''
     }
   },
   computed: {
     transcript () {
       return this.$store.getters.transcript
+    },
+    transcribed () {
+      return this.$store.getters.transcribed
     },
     listening () {
       return this.$store.getters.listening
@@ -93,6 +99,15 @@ export default {
       if (newVal && !oldVal) { // false -> true
         this.stop()
       }
+    },
+    transcribed: function (newVal, oldVal) {
+      console.log('store.transcribed changed newVal : ' + newVal)
+      if (this.result.length === 0) {
+        this.result = newVal
+      } else {
+        this.result = this.result + ',' + newVal
+      }
+      console.log('result : ' + this.result)
     }
   },
   methods: {
@@ -109,11 +124,14 @@ export default {
           'inactivity_timeout': -1
         }
         await stt.wsopen(openingMsg)
+        this.isWaitListening = true
       }
     },
     async startConvert () {
       console.log('startConvert')
       this.isConverting = true
+      this.isWaitListening = false
+      this.result = ''
       // listening になったら (watch listening から呼び出す)
       // audioBlob から readStream で読み出して、stt.wssend する
       let stream = new ReadableBlobStream(this.audioBlob)
@@ -148,10 +166,12 @@ export default {
           'inactivity_timeout': 2
         }
         await stt.wsopen(openingMsg)
+        this.isWaitListening = true
       }
     },
     async startRecorder () {
       if (!this.isRecording) {
+        this.result = ''
         this.chunks = []
         this.recordlimit = false
         this.$store.commit('setTranscript', {transcript: ''})
@@ -161,6 +181,7 @@ export default {
         this.createRecorder()
         console.log('isRecording set true')
         this.isRecording = true
+        this.isWaitListening = false
       }
     },
     // レコーディング停止制御
