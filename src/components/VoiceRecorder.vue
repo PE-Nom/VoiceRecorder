@@ -6,13 +6,15 @@
       <button id="start" v-if="!isRecording" v-bind:disabled="isConverting || isWaitListening" v-on:click="start">録音開始</button>
       <button id="stop" v-else v-on:click="stop">録音終了</button>
       <button id="replay" v-bind:disabled="!audioBlob || isWaitListening || isRecording || isConverting" v-on:click="convertBlob">変換</button>
-      <p> listenig : {{listening}} </p>
+      <p>listenig : {{listening}}</p>
     </div>
     <div>
+      <!--
       <p> WsSendCount : {{wssendcnt}} </p>
       <p> AudioProcessCnt : {{audioprocesscnt}} </p>
-      <p>{{transcript}}</p>
-      <p>{{result}}</p>
+      -->
+      <p>transcript : {{transcript}}</p>
+      <p>result     : {{result}}</p>
     </div>
   </div>
 </template>
@@ -279,10 +281,12 @@ export default {
           this.audioAnalyser = this.audioContext.createAnalyser()
           this.audioInput.connect(this.audioAnalyser)
           let canvas = this.$refs.canvas
+          canvas.height = 64
           let cw = canvas.width
           let ch = canvas.height
           let drawContext = canvas.getContext('2d')
           let self = this
+          // --
           /*
           this.audioAnalyser.fftSize = 2048
           const array = new Uint8Array(self.audioAnalyser.fftSize)
@@ -323,13 +327,48 @@ export default {
               var g = 250 * (i / bufferLength)
               var b = 50
               drawContext.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')'
-              drawContext.fillRect(x, ch - barHeight, barWidth, barHeight)
+              // drawContext.fillRect(x, ch - barHeight, barWidth, barHeight)
+              drawContext.fillRect(x, ch - array[i] / 4, barWidth, barHeight)
+              if (ch < barHeight) {
+                console.log('Over Ch : ' + ch + ', ' + barHeight)
+              }
               x += barWidth + 1
             }
             requestAnimationFrame(renderFrame)
           }
           renderFrame()
           // --
+          /*
+          this.audioAnalyser.fftSize = 2048
+          const array = new Uint8Array(self.audioAnalyser.fftSize)
+          function draw () {
+            // ask the browser to schedule a redraw before the next repaint
+            requestAnimationFrame(draw)
+
+            // clear the canvas
+            drawContext.fillStyle = 'rgba(0, 0, 0, 1)'
+            drawContext.fillRect(0, 0, cw, ch)
+
+            drawContext.lineWidth = 2
+            drawContext.strokeStyle = '#f00'
+            drawContext.beginPath()
+
+            let sliceWidth = cw * 1.0 / self.audioAnalyser.fftSize
+            let x = 0
+
+            self.audioAnalyser.getByteTimeDomainData(array)
+
+            for (let i = 0; i < self.audioAnalyser.fftSize; i++) {
+              let v = array[i] / 128.0
+              let y = v * ch / 2
+              i === 0 ? drawContext.moveTo(x, y) : drawContext.lineTo(x, y)
+              x += sliceWidth
+            }
+            drawContext.lineTo(cw, ch / 2)
+            drawContext.stroke()
+          }
+          draw()
+          */
         })
         .catch(error => {
           console.log(error)
@@ -348,7 +387,6 @@ export default {
 <style>
 canvas {
   width: 100%;
-  height: 256px;
 }
 
 button {
